@@ -22,6 +22,20 @@ Add this MCP server to Claude Code user settings:
 claude mcp add -s user bq-mcp -- uv --directory /path/to/bq-mcp-py/ run bq-mcp.py
 ```
 
+Add this MCP server to Gemini CLI ~/.gemini/settings.json settings:
+
+```json
+"bq-mcp": {
+  "command": "uv",
+  "args": [
+    "--directory",
+    "/path/to/bq-mcp-py",
+    "run",
+    "bq-mcp.py"
+  ]
+}
+```
+
 ## Usage
 
 Once installed, the server provides the following tools:
