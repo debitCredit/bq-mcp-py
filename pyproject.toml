@@ -1,0 +1,12 @@
+[project]
+name = "bq-mcp-py"
+version = "0.1.0"
+description = "BigQuery MCP server for schema inspection"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "mcp[cli]>=1.2.0",
+]
+
+[project.scripts]
+bq-mcp-py = "bq-mcp:main"
