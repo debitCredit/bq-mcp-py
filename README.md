@@ -14,7 +14,7 @@ A minimal MCP (Model Context Protocol) server that provides passthrough access t
 - Python 3.13+
 - `uv` package manager
 
-## Installation for Claude Code
+## Installation for CLI coding tools
 
 Add this MCP server to Claude Code user settings:
 
@@ -22,7 +22,7 @@ Add this MCP server to Claude Code user settings:
 claude mcp add -s user bq-mcp -- uv --directory /path/to/bq-mcp-py/ run bq-mcp.py
 ```
 
-Add this MCP server to Gemini CLI ~/.gemini/settings.json settings:
+Add this to Gemini CLI ~/.gemini/settings.json settings:
 
 ```json
 "bq-mcp": {
