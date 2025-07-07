@@ -16,10 +16,10 @@ A minimal MCP (Model Context Protocol) server that provides passthrough access t
 
 ## Installation for Claude Code
 
-Add this MCP server to Claude Code:
+Add this MCP server to Claude Code user settings:
 
 ```bash
-claude mcp add bq-mcp -- uv run /path/to/bq-mcp-py/bq-mcp.py
+claude mcp add -s user bq-mcp -- uv --directory /path/to/bq-mcp-py/ run bq-mcp.py
 ```
 
 ## Usage
