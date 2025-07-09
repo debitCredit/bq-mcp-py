@@ -48,17 +48,9 @@ async def get_bq_schema(table_id: str) -> str:
     project_id = parts[0]
     dataset_table_id = '.'.join(parts[1:])
 
-    # Set gcloud project
-    gcloud_result = await run_command([
-        "gcloud", "config", "set", "project", project_id
-    ])
-
-    if not gcloud_result["success"]:
-        return f"Error setting gcloud project: {gcloud_result['stderr']}"
-
-    # Get BigQuery schema
+    # Get BigQuery schema using --project_id flag
     bq_result = await run_command([
-        "bq", "show", "--format=prettyjson", dataset_table_id
+        "bq", "--project_id", project_id, "show", "--format=prettyjson", dataset_table_id
     ])
 
     if not bq_result["success"]:
@@ -86,17 +78,9 @@ async def get_bq_routine(routine_id: str) -> str:
     project_id = parts[0]
     dataset_routine_id = '.'.join(parts[1:])
 
-    # Set gcloud project
-    gcloud_result = await run_command([
-        "gcloud", "config", "set", "project", project_id
-    ])
-
-    if not gcloud_result["success"]:
-        return f"Error setting gcloud project: {gcloud_result['stderr']}"
-
-    # Get BigQuery routine information
+    # Get BigQuery routine information using --project_id flag
     bq_result = await run_command([
-        "bq", "show", "--routine", "--format=prettyjson", dataset_routine_id
+        "bq", "--project_id", project_id, "show", "--routine", "--format=prettyjson", dataset_routine_id
     ])
 
     if not bq_result["success"]:
