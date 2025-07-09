@@ -40,7 +40,6 @@ async def get_bq_schema(table_id: str) -> str:
     Returns:
         JSON schema of the BigQuery table
     """
-    # Parse table ID to extract project and dataset.table
     parts = table_id.split('.')
     if len(parts) < 3:
         return "Error: table_id must be in format project.dataset.table"
@@ -48,9 +47,8 @@ async def get_bq_schema(table_id: str) -> str:
     project_id = parts[0]
     dataset_table_id = '.'.join(parts[1:])
 
-    # Get BigQuery schema using --project_id flag
     bq_result = await run_command([
-        "bq", "--project_id", project_id, "show", "--format=prettyjson", dataset_table_id
+        "bq", "--project_id", project_id, "show", "--format=json", dataset_table_id
     ])
 
     if not bq_result["success"]:
@@ -70,7 +68,6 @@ async def get_bq_routine(routine_id: str) -> str:
     Returns:
         JSON information about the BigQuery routine including definition, parameters, and return type
     """
-    # Parse routine ID to extract project and dataset.routine
     parts = routine_id.split('.')
     if len(parts) < 3:
         return "Error: routine_id must be in format project.dataset.routine_name"
@@ -78,9 +75,8 @@ async def get_bq_routine(routine_id: str) -> str:
     project_id = parts[0]
     dataset_routine_id = '.'.join(parts[1:])
 
-    # Get BigQuery routine information using --project_id flag
     bq_result = await run_command([
-        "bq", "--project_id", project_id, "show", "--routine", "--format=prettyjson", dataset_routine_id
+        "bq", "--project_id", project_id, "show", "--routine", "--format=json", dataset_routine_id
     ])
 
     if not bq_result["success"]:
