@@ -15,7 +15,7 @@ A minimal MCP (Model Context Protocol) server that provides passthrough access t
 - Python 3.13+
 - `uv` package manager
 
-## Installation for CLI coding tools
+## Installation for coding agents
 
 Add this MCP server to Claude Code user settings:
 
@@ -34,6 +34,25 @@ Add this to Gemini CLI ~/.gemini/settings.json settings:
     "run",
     "bq-mcp.py"
   ]
+}
+```
+
+Add this to VS Code user settings:
+
+```json
+"mcp": {
+    "servers": {
+    "bq-schema": {
+        "type": "stdio",
+        "command": "uv",
+        "args": [
+            "--directory",
+            "/path/to/bq-mcp-py",
+            "run",
+            "bq-mcp.py"
+        ]
+    }
+    }
 }
 ```
 
