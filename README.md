@@ -1,5 +1,9 @@
 # BigQuery MCP Server
 
+[![CI](https://github.com/debitCredit/bq-mcp-py/workflows/CI/badge.svg)](https://github.com/debitCredit/bq-mcp-py/actions/workflows/ci.yml)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![Type checker: mypy](https://img.shields.io/badge/type%20checker-mypy-blue)](https://mypy-lang.org/)
+
 A minimal MCP (Model Context Protocol) server that provides passthrough access to Google Cloud BigQuery commands. This server uses your existing `gcloud` CLI authentication and provides tools for querying BigQuery table schemas and routine information.
 
 ## Features
