@@ -4,13 +4,14 @@
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Type checker: mypy](https://img.shields.io/badge/type%20checker-mypy-blue)](https://mypy-lang.org/)
 
-A minimal MCP (Model Context Protocol) server that provides passthrough access to Google Cloud BigQuery commands. This server uses your existing `gcloud` CLI authentication and provides tools for querying BigQuery table schemas and routine information.
+A minimal MCP (Model Context Protocol) server that provides passthrough access to Google Cloud BigQuery commands. This server uses your existing `gcloud` CLI authentication and provides tools for querying BigQuery table schemas, routine information, and executing BigQuery queries with safety checks.
 
 ## Features
 
 - **Minimal setup**: Uses your existing `gcloud` CLI authentication
 - **Schema inspection**: Get BigQuery table and view schemas in JSON format
 - **Routine information**: Get BigQuery routine (TVF, stored procedure, function) details
+- **Query execution**: Execute BigQuery queries with safety checks and cost estimation
 - **Passthrough commands**: Direct access to `bq` and `gcloud` commands
 
 ## Prerequisites
@@ -66,6 +67,7 @@ Once installed, the server provides the following tools:
 
 - `get_bq_schema(table_id)`: Get the schema for a BigQuery table or view in `project.dataset.table` format
 - `get_bq_routine(routine_id)`: Get information about a BigQuery routine (TVF, stored procedure, function) in `project.dataset.routine_name` format
+- `execute_bq_query(query, project_id, confirmation_token)`: Execute BigQuery queries with safety checks, cost estimation, and confirmation tokens for dangerous operations
 
 ## Authentication
 
