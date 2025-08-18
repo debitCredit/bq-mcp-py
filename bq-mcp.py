@@ -1,23 +1,11 @@
-import hashlib
 import subprocess
-import time
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+from fastmcp import Context, FastMCP
 
-mcp: FastMCP = FastMCP(
-    "bq-mcp",
-    description=(
-        "BigQuery MCP server for getting table schemas and routine information. "
-        "Use get_bq_schema for tables/views and get_bq_routine for TVFs, stored "
-        "procedures, and functions. When analyzing SQL queries with mixed "
-        "identifiers, check both table and routine endpoints to identify the "
-        "correct object type."
-    ),
-)
+mcp = FastMCP("bq-mcp")
 
 # Security configuration
-CONFIRMATION_TOKENS: dict[str, dict[str, Any]] = {}
 DANGEROUS_KEYWORDS = [
     "DELETE",
     "DROP",
@@ -34,27 +22,6 @@ def is_dangerous_query(query: str) -> bool:
     return any(keyword in query.upper() for keyword in DANGEROUS_KEYWORDS)
 
 
-def generate_confirmation_token(query: str) -> str:
-    """Generate time-limited confirmation token."""
-    timestamp = str(int(time.time()))
-    token = hashlib.sha256(f"{query}{timestamp}".encode()).hexdigest()[:16]
-    CONFIRMATION_TOKENS[token] = {"query": query, "timestamp": int(timestamp)}
-    return token
-
-
-def validate_confirmation_token(token: str, query: str) -> bool:
-    """Validate confirmation token is recent and matches query."""
-    if token not in CONFIRMATION_TOKENS:
-        return False
-
-    token_data = CONFIRMATION_TOKENS[token]
-    if time.time() - token_data["timestamp"] > 60:  # 60 second expiry
-        del CONFIRMATION_TOKENS[token]
-        return False
-
-    return str(token_data["query"]) == query
-
-
 async def run_command(command: list[str]) -> dict[str, Any]:
     """Run a shell command and return the result."""
     try:
@@ -69,8 +36,8 @@ async def run_command(command: list[str]) -> dict[str, Any]:
         }
 
 
-@mcp.tool()
-async def get_bq_schema(table_id: str) -> str:
+@mcp.tool
+async def get_bq_schema(table_id: str, ctx: Context) -> str:
     """
     Get BigQuery table schema for a given table ID.
 
@@ -97,8 +64,8 @@ async def get_bq_schema(table_id: str) -> str:
     return str(bq_result["stdout"])
 
 
-@mcp.tool()
-async def get_bq_routine(routine_id: str) -> str:
+@mcp.tool
+async def get_bq_routine(routine_id: str, ctx: Context) -> str:
     """
     Get BigQuery routine (TVF, stored procedure, function) information for a
     given routine ID.
@@ -135,20 +102,17 @@ async def get_bq_routine(routine_id: str) -> str:
     return str(bq_result["stdout"])
 
 
-@mcp.tool()
-async def execute_bq_query(
-    query: str, project_id: str, confirmation_token: str | None = None
-) -> str:
+@mcp.tool
+async def execute_bq_query(query: str, project_id: str, ctx: Context) -> str:
     """
     Execute BigQuery query with safety checks.
 
     Args:
         query: SQL query to execute
         project_id: Google Cloud project ID
-        confirmation_token: Required for dangerous operations (DELETE, DROP, etc.)
 
     Returns:
-        Query results or confirmation token requirement
+        Query results (user approval required for dangerous operations via MCP sampling)
     """
     # First, always run dry-run to validate syntax and estimate cost
     dry_run_result = await run_command(
@@ -185,20 +149,42 @@ async def execute_bq_query(
     except Exception:
         cost_info = "Could not parse cost estimation"
 
-    # Check if query is dangerous
+    # Check if query is dangerous and request user approval via MCP sampling
     if is_dangerous_query(query):
-        if not confirmation_token:
-            token = generate_confirmation_token(query)
-            return (
-                f"⚠️  DANGEROUS QUERY DETECTED\n\n{cost_info}\n\n"
-                f"To execute this query, call again with confirmation_token: {token}"
+        approval_prompt = (
+            f"⚠️  DANGEROUS QUERY DETECTED\n\n"
+            f"Query: {query}\n\n"
+            f"Project: {project_id}\n\n"
+            f"{cost_info}\n\n"
+            f"This query contains potentially destructive operations "
+            f"({', '.join(kw for kw in DANGEROUS_KEYWORDS if kw in query.upper())}). "
+            f"Should this query be executed?"
+        )
+
+        try:
+            # Request user approval through MCP sampling
+            sample_result = await ctx.sample(
+                approval_prompt,
+                system_prompt=(
+                    "You are helping review a dangerous BigQuery operation. "
+                    "Respond 'APPROVE' to proceed or 'DENY' to cancel."
+                ),
+                temperature=0.1,
+                max_tokens=50,
             )
 
-        if not validate_confirmation_token(confirmation_token, query):
-            return "Invalid or expired confirmation token. Please request a new one."
+            if hasattr(sample_result, "text") and sample_result.text:
+                response_text = sample_result.text.strip().upper()
+                if "APPROVE" not in response_text:
+                    return "Query execution cancelled by user."
+            else:
+                return "Query execution cancelled by user."
 
-    # For safe queries, show cost info but proceed
-    if not confirmation_token:
+        except Exception as e:
+            return f"Query execution cancelled: {str(e)}"
+
+    # For safe queries, show cost info
+    else:
         print(f"Query cost estimation: {cost_info}")
 
     # Execute the query
@@ -220,7 +206,7 @@ async def execute_bq_query(
 
 
 def main() -> None:
-    mcp.run(transport="stdio")
+    mcp.run()
 
 
 if __name__ == "__main__":
