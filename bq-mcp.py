@@ -1,3 +1,4 @@
+import re
 import subprocess
 from typing import Any
 
@@ -19,7 +20,12 @@ DANGEROUS_KEYWORDS = [
 
 def is_dangerous_query(query: str) -> bool:
     """Check if query contains dangerous operations."""
-    return any(keyword in query.upper() for keyword in DANGEROUS_KEYWORDS)
+    query_upper = query.upper()
+    # Use word boundaries to avoid false positives like 'created_at' containing 'CREATE'
+    for keyword in DANGEROUS_KEYWORDS:
+        if re.search(rf"\b{keyword}\b", query_upper):
+            return True
+    return False
 
 
 async def run_command(command: list[str]) -> dict[str, Any]:
@@ -112,83 +118,40 @@ async def execute_bq_query(query: str, project_id: str, ctx: Context) -> str:
         project_id: Google Cloud project ID
 
     Returns:
-        Query results (user approval required for dangerous operations via MCP sampling)
+        Query results (user approval required for dangerous operations via
+        MCP elicitations)
     """
-    # First, always run dry-run to validate syntax and estimate cost
-    dry_run_result = await run_command(
-        [
-            "bq",
-            "query",
-            "--dry_run",
-            "--format=json",
-            f"--project_id={project_id}",
-            "--use_legacy_sql=false",
-            query,
-        ]
-    )
-
-    if not dry_run_result["success"]:
-        return f"Query validation failed: {dry_run_result['stderr']}"
-
-    # Parse dry-run results to show cost estimation
-    import json
-
-    try:
-        dry_run_data = json.loads(dry_run_result["stdout"])
-        stats = dry_run_data.get("statistics", {}).get("query", {})
-        bytes_processed = int(stats.get("totalBytesProcessed", 0))
-        bytes_billed = int(stats.get("totalBytesBilled", 0))
-
-        mb_processed = bytes_processed / 1024 / 1024
-        cost_info = (
-            f"Estimated bytes processed: {bytes_processed:,} ({mb_processed:.2f} MB)"
-        )
-        if bytes_billed > 0:
-            mb_billed = bytes_billed / 1024 / 1024
-            cost_info += f"\nBytes billed: {bytes_billed:,} ({mb_billed:.2f} MB)"
-    except Exception:
-        cost_info = "Could not parse cost estimation"
-
-    # Check if query is dangerous and request user approval via MCP sampling
+    # Check if query is dangerous and request user approval via MCP elicitations
     if is_dangerous_query(query):
+        detected_keywords = [kw for kw in DANGEROUS_KEYWORDS if kw in query.upper()]
+        operations = ", ".join(detected_keywords)
         approval_prompt = (
             f"⚠️  DANGEROUS QUERY DETECTED\n\n"
             f"Query: {query}\n\n"
             f"Project: {project_id}\n\n"
-            f"{cost_info}\n\n"
-            f"This query contains potentially destructive operations "
-            f"({', '.join(kw for kw in DANGEROUS_KEYWORDS if kw in query.upper())}). "
-            f"Should this query be executed?"
+            f"This query contains potentially destructive operations ({operations}). "
+            f"Please review carefully and decide whether to approve execution."
         )
 
         try:
-            # Request user approval through MCP sampling
-            sample_result = await ctx.sample(
-                approval_prompt,
-                system_prompt=(
-                    "You are helping review a dangerous BigQuery operation. "
-                    "Respond 'APPROVE' to proceed or 'DENY' to cancel."
-                ),
-                temperature=0.1,
-                max_tokens=50,
-            )
+            # Request user approval through MCP elicitations
+            result = await ctx.elicit(message=approval_prompt, response_type=None)
 
-            if hasattr(sample_result, "text") and sample_result.text:
-                response_text = sample_result.text.strip().upper()
-                if "APPROVE" not in response_text:
-                    return "Query execution cancelled by user."
+            if result.action == "accept":
+                # User approved the query - continue with execution
+                pass
+            elif result.action == "decline":
+                return "Query execution declined by user."
+            elif result.action == "cancel":
+                return "Query execution cancelled by user."
             else:
                 return "Query execution cancelled by user."
 
         except Exception as e:
             return f"Query execution cancelled: {str(e)}"
 
-    # For safe queries, show cost info
-    else:
-        print(f"Query cost estimation: {cost_info}")
-
     # Execute the query
-    result = await run_command(
+    bq_result = await run_command(
         [
             "bq",
             "query",
@@ -199,10 +162,10 @@ async def execute_bq_query(query: str, project_id: str, ctx: Context) -> str:
         ]
     )
 
-    if not result["success"]:
-        return f"Query execution failed: {result['stderr']}"
+    if not bq_result["success"]:
+        return f"Query execution failed: {bq_result['stderr']}"
 
-    return str(result["stdout"])
+    return str(bq_result["stdout"])
 
 
 def main() -> None:
