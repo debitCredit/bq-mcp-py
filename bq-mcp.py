@@ -114,12 +114,20 @@ async def execute_bq_query(query: str, project_id: str, ctx: Context) -> str:
     Execute BigQuery query with safety checks.
 
     Args:
-        query: SQL query to execute
+        query: SQL query to execute - must be valid BigQuery Standard SQL syntax.
+               Do not include comments or additional formatting. Provide only the
+               executable SQL statement.
         project_id: Google Cloud project ID
 
     Returns:
         Query results (user approval required for dangerous operations via
         MCP elicitations)
+
+    Note:
+        - Queries must use BigQuery Standard SQL syntax (not Legacy SQL)
+        - Do not add SQL comments or explanatory text in the query
+        - Provide only clean, executable SQL statements
+        - Dangerous operations (DELETE, DROP, TRUNCATE, etc.) require user approval
     """
     # Check if query is dangerous and request user approval via MCP elicitations
     if is_dangerous_query(query):
